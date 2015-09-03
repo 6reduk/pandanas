@@ -88,7 +88,6 @@ class DaemonStartupConfigureMixin(object):
             options['debug'] = conf_parser.get('daemon', 'debug')
         return options
 
-    # TODO code logic, add doc comment
     def get_file_options(self, config_file):
         conf_parser = self.get_configparser(config_file)
         options = self.parse_config_options(conf_parser)
