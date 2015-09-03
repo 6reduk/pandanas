@@ -1,36 +1,44 @@
 # -*- coding: utf-8 -*-
 # system
-import argparse
 import os
-import time
-import logging
 import signal
+import time
+import sys
+import logging
+import argparse
+import configparser
 # my
 from pandanas.exceptions import ImproperlyConfigured, DaemonException
 
 
-# TODO code logic
 class DaemonStartupConfigureMixin(object):
 
-    DEFAULT_WORK_DIRECTORY = './'
-    DEFAULT_PIDFILE = 'daemon.pid'
-    DEFAULT_CONFIG_PATH = 'config.ini'
-    DEFAULT_LOG_FILE = 'daemon.log'
+    default_work_directory = './'
+    default_pidfile = 'daemon.pid'
+    default_config_path = 'config.ini'
+    default_log_file = 'daemon.log'
+    config_file_path = None
 
     def __init__(self):
         super(DaemonStartupConfigureMixin, self).__init__()
-        cli_options = self._get_cli_options()
 
-        file_options = dict()
-        if not cli_options['no_config']:
-            self.config_path = cli_options['config_path']
-            file_options = self._get_file_options(self.config_path)
-        else:
-            self.config_path = None
+        cli_options = self.get_cli_options()
 
+        self.config_file = cli_options['config_path']
         del(cli_options['config_path'])
+        file_options = self.get_file_options(self.config_file)
 
-        self._config = self._combine_config_options(cli_options, file_options)
+        self._config = self.combine_config_options(cli_options, file_options)
+
+    @property
+    def config_file(self):
+        if self.config_file_path is None:
+            raise ImproperlyConfigured('Config file options not configured')
+        return self.config_file_path
+
+    @config_file.setter
+    def config_file(self, value):
+        self.config_file_path = value
 
     @property
     def config(self):
@@ -42,27 +50,57 @@ class DaemonStartupConfigureMixin(object):
     def config(self, value):
         self._config = value
 
-    def _get_cli_options(self):
+    def get_cli_options(self):
         """
         Parse startup options and prepare dict with processed values
 
         :return: dict
         """
-        argparser = self._get_argparser()
+        argparser = self.get_argparser()
         args = argparser.parse_args()
-        return self._parse_cli_options(args)
+        return self.parse_cli_options(args)
 
-    #TODO code logic, add doc comment
-    def _get_file_options(self, file_path):
-        return dict()
+    def get_configparser(self, config_file):
+        try:
+            conf_parser = configparser.ConfigParser()
+            conf_parser.read(config_file)
+        except Exception as e:
+            raise DaemonException('Can not read or parse config file: {err}'.format(e))
+
+        return conf_parser
+
+    def parse_config_options(self, conf_parser):
+        options = dict()
+        if not conf_parser.has_section('daemon'):
+            return options
+
+        if conf_parser.has_option('daemon', 'work_directory'):
+            options['work_directory'] = conf_parser.get('daemon', 'work_directory')
+        if conf_parser.has_option('daemon', 'pidfile'):
+            options['pidfile'] = conf_parser.get('daemon', 'pidfile')
+        if conf_parser.has_option('daemon', 'uid'):
+            options['uid'] = conf_parser.get('daemon', 'uid')
+        if conf_parser.has_option('daemon', 'gid'):
+            options['gid'] = conf_parser.get('daemon', 'gid')
+        if conf_parser.has_option('daemon', 'log_level'):
+            options['log_level'] = conf_parser.get('daemon', 'log_level')
+        if conf_parser.has_option('daemon', 'debug'):
+            options['debug'] = conf_parser.get('daemon', 'debug')
+        return options
+
+    # TODO code logic, add doc comment
+    def get_file_options(self, config_file):
+        conf_parser = self.get_configparser(config_file)
+        options = self.parse_config_options(conf_parser)
+        return options
 
     @staticmethod
-    def _combine_config_options(cli_options, file_options):
+    def combine_config_options(cli_options, file_options):
         result = file_options.copy()
         result.update(cli_options)
         return result
 
-    def _get_argparser(self):
+    def get_argparser(self):
         """
         Parse startup options and return ArgumentParser object.
         For define your own options simple override this method with calling parent method and build new
@@ -74,16 +112,16 @@ class DaemonStartupConfigureMixin(object):
         parser.add_argument('-d', action='store_true', default=False, dest='detach_process',
                             help='Detach and daemonize process')
         parser.add_argument('--work_directory', type=str,
-                            help='Working directory for worker processes. [Default: {}]'.format(self.DEFAULT_WORK_DIRECTORY))
-        parser.add_argument('--pidfile', type=str, help='Path for pid file. [Default: {}]'.format(self.DEFAULT_PIDFILE))
+                            help='Working directory for worker processes. [Default: {}]'.format(self.default_work_directory))
+        parser.add_argument('--pidfile', type=str, help='Path for pid file. [Default: {}]'.format(self.default_pidfile))
         parser.add_argument('--uid', type=int, help='User id for running processes after fork')
         parser.add_argument('--gid', type=int, help='Group id for running processes after fork')
         parser.add_argument('--config', type=str, dest='config_path',
-                            help='Path to config file. [Default: {}]'.format(self.DEFAULT_CONFIG_PATH))
+                            help='Path to config file. [Default: {}]'.format(self.default_config_path))
         parser.add_argument('--no-config', action='store_true', dest='no_config', default=False,
                             help='Do not use config file')
-        parser.add_argument('--logfile', type=str, default=self.DEFAULT_LOG_FILE,
-                            help='Logging file. [Default: {}]'.format(self.DEFAULT_LOG_FILE))
+        parser.add_argument('--logfile', type=str, default=self.default_log_file,
+                            help='Logging file. [Default: {}]'.format(self.default_log_file))
         parser.add_argument('--log-level', type=str, default='info', dest='log_level',
                             choices=['debug', 'info', 'warn', 'error', 'critical'],
                             help='Logging level. [Default: info]')
@@ -91,7 +129,7 @@ class DaemonStartupConfigureMixin(object):
         parser.add_argument('--debug', action='store_true', dest='debug', default=False, help='Use debug mode')
         return parser
 
-    def _parse_cli_options(self, args):
+    def parse_cli_options(self, args):
         """
         Parsing startup options for define core daemon behavior and worker processes.
         For parsing additional params need override this method with calling parent and adding your own params to
@@ -102,11 +140,11 @@ class DaemonStartupConfigureMixin(object):
         """
         options = dict()
 
-        options['work_directory'] = args.work_directory if args.work_directory else self.DEFAULT_WORK_DIRECTORY
-        options['pidfile'] = args.pidfile if args.pidfile else self.DEFAULT_PIDFILE
+        options['work_directory'] = args.work_directory if args.work_directory else self.default_work_directory
+        options['pidfile'] = args.pidfile if args.pidfile else self.default_pidfile
         options['uid'] = args.uid if args.uid else os.getuid()
         options['gid'] = args.gid if args.gid else os.getgid()
-        options['config_path'] = args.config_path if args.config_path else self.DEFAULT_CONFIG_PATH
+        options['config_path'] = args.config_path if args.config_path else self.default_config_path
         options['detach_process'] = args.detach_process
         options['no_config'] = args.no_config
         options['log_level'] = args.log_level.upper()

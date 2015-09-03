@@ -58,13 +58,13 @@ class DaemonBase(DaemonStartupConfigureMixin, LoggerMixin, SignalHandleableMixin
 
         return handlers
 
-    def _get_argparser(self):
-        parser = super(DaemonBase, self)._get_argparser()
+    def get_argparser(self):
+        parser = super(DaemonBase, self).get_argparser()
         parser.add_argument('action', choices=['start', 'stop', 'reload'], help='Action')
         return parser
 
-    def _parse_cli_options(self, args):
-        options = super(DaemonBase, self)._parse_cli_options(args)
+    def parse_cli_options(self, args):
+        options = super(DaemonBase, self).parse_cli_options(args)
         options['action'] = args.action
         return options
 
@@ -103,7 +103,6 @@ class DaemonBase(DaemonStartupConfigureMixin, LoggerMixin, SignalHandleableMixin
         self.log_info('Start daemon')
         pass
 
-    # TODO code logic
     def daemon_reload(self):
         self.log_info('Action reload daemon not implemented')
         sys.exit(self.STATUS_EXIT_OK)
