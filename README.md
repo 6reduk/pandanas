@@ -165,4 +165,6 @@ class Worker(MultiprocessDaemon):
         
         if conf_parser.has_option('my_own_section', 'some_options'):
             options['some_option'] = conf_parser.get('my_own_section', 'some_option')
+        
+        return options
 ```
