@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 # system
-import os
-import signal
 import time
-import sys
-import logging
 import argparse
 import configparser
+import os
+
 # my
 from pandanas.exceptions import ImproperlyConfigured, DaemonException
 
@@ -196,7 +194,7 @@ class WorkerUnitManagerMixin(object):
 
     def spawn_worker(self):
         worker_base = self.get_worker_base()
-        worker = worker_base(name=self.get_worker_name())
+        worker = worker_base(config=self.config, name=self.get_worker_name())
         return worker
 
     def all_worker_alive(self):
@@ -225,99 +223,3 @@ class WorkerUnitManagerMixin(object):
             time.sleep(2)
 
 
-class LoggerMixin(object):
-
-    logfile_name = 'daemon.log'
-    log_level = logging.DEBUG
-    logger_name = None
-
-    def get_logger_name(self):
-        if not self.logger_name:
-            raise ImproperlyConfigured('{}: logger_name not configured.'.format(cls=self.__class__))
-        return self.logger_name
-
-    def get_logfile_name(self):
-        return self.logfile_name
-
-    def get_log_level(self):
-        return self.log_level
-
-    @staticmethod
-    def get_handler_formatter():
-        return logging.Formatter('[%(asctime)s]:[%(name)s]:[#%(process)s]:[%(levelname)s]:[%(processName)s] - %(message)s')
-
-    def get_logger_handlers(self):
-        handlers = []
-
-        fh = logging.FileHandler(self.get_logfile_name())
-        fh.setLevel(self.get_log_level())
-        fh.setFormatter(self.get_handler_formatter())
-
-        handlers.append(fh)
-
-        return handlers
-
-    def init_logger(self):
-        logger = logging.getLogger(self.get_logger_name())
-        logger.setLevel(self.get_log_level())
-
-        for handler in self.get_logger_handlers():
-            logger.addHandler(handler)
-
-        self.logger = logger
-
-    def clear_logger_handlers(self):
-        for handler in self.logger.handlers:
-            handler.close()
-
-        self.logger.handlers = []
-
-    @property
-    def logger(self):
-        if not hasattr(self, '_logger'):
-            raise ImproperlyConfigured('{cls}: Logger not configured'.format(cls=self.__class__))
-        return self._logger
-
-    @logger.setter
-    def logger(self, value):
-        self._logger = value
-
-    def log_debug(self, message, *args, **kwargs):
-        self.logger.debug(message, *args, **kwargs)
-
-    def log_info(self, message, *args, **kwargs):
-        self.logger.info(message, *args, **kwargs)
-
-    def log_warn(self, message, *args, **kwargs):
-        self.logger.warn(message, *args, **kwargs)
-
-    def log_error(self, message, *args, **kwargs):
-        self.logger.error(message, *args, **kwargs)
-
-    def log_critical(self, message, *args, **kwargs):
-        self.logger.critical(message, *args, **kwargs)
-
-
-class SignalHandleableMixin(object):
-
-    def get_signal_map(self):
-        name_map = {
-            'SIGHUP': self.handle_reload,
-            'SIGTERM': self.handle_terminate,
-            'SIGCHLD': self.handle_child
-        }
-
-        signal_map = {}
-        for name, target in name_map.items():
-            if hasattr(signal, name):
-                signal_map[getattr(signal, name)] = target
-        return signal_map
-
-    def handle_terminate(self, signal_number, stack_frame):
-        raise NotImplemented('This method must be implemented for usage.')
-
-    def handle_reload(self, signal_number, stack_frame):
-        raise NotImplemented('This method must be implemented for usage.')
-
-    def handle_child(self, signal_number, stack_frame):
-        pass

@@ -16,3 +16,11 @@ class DaemonException(Exception):
 
     def __init__(self, *args, **kwargs):
         super(DaemonException, self).__init__(*args, **kwargs)
+
+
+class JobProcessException(Exception):
+    """
+    Base exception for worker unit job processing
+    """
+    def __init__(self, *args, **kwargs):
+        super(JobProcessException, self).__init__(*args, **kwargs)

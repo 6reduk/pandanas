@@ -8,13 +8,13 @@ import time
 # 3rd party
 from pep3143daemon import DaemonContext, DaemonError, PidFile
 # my
-from pandanas.daemon.core.mixins import DaemonStartupConfigureMixin, LoggerMixin, SignalHandleableMixin, \
-    CliInteractionMixin
+from pandanas.daemon.core.mixins import DaemonStartupConfigureMixin, CliInteractionMixin
+from pandanas.core.mixins import LoggerMixin, SignalHandleMixin
 from pandanas.daemon.tools import stop_process
 from pandanas.exceptions import ImproperlyConfigured
 
 
-class DaemonBase(DaemonStartupConfigureMixin, LoggerMixin, SignalHandleableMixin, CliInteractionMixin):
+class DaemonBase(DaemonStartupConfigureMixin, LoggerMixin, SignalHandleMixin, CliInteractionMixin):
 
     STATUS_EXIT_OK = 0
     STATUS_EXIT_ERROR = 1
